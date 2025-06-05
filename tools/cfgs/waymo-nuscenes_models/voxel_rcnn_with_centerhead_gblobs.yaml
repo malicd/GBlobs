@@ -1,6 +1,33 @@
-CLASS_NAMES: ['car', 'bicycle', 'pedestrian']
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
-DATA_CONFIG: 
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+    POINT_FEATURE_ENCODING: {
+        encoding_type: absolute_coordinates_encoding,
+        used_feature_list: ['x', 'y', 'z'],
+        src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation'],
+    }
+    DATA_PROCESSOR:
+        -   NAME: mask_points_and_boxes_outside_range
+            REMOVE_OUTSIDE_BOXES: True
+            STRICT_MASK: True
+
+        -   NAME: shuffle_points
+            SHUFFLE_ENABLED: {
+                'train': True,
+                'test': True
+            }
+
+        - NAME: transform_points_to_voxels
+          VOXEL_SIZE: [0.1, 0.1, 0.15]
+          MAX_POINTS_PER_VOXEL: 10
+          MAX_NUMBER_OF_VOXELS: {
+            'train': 150000,
+            'test': 150000
+          }
+
+TEST_DATA_CONFIG: 
+    CLASS_NAMES: ['car', 'bicycle', 'pedestrian']
     _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
     POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
     SHIFT_COOR: [0.0, 0.0, 1.8]
@@ -31,7 +58,6 @@ DATA_CONFIG:
             'test': 150000
           }
 
-
 MODEL:
     NAME: VoxelRCNN
 
@@ -61,7 +87,7 @@ MODEL:
         CLASS_AGNOSTIC: False
 
         CLASS_NAMES_EACH_HEAD: [
-            [ 'car', 'pedestrian', 'bicycle' ]
+            [ 'Vehicle', 'Pedestrian', 'Cyclist' ]
         ]
 
         SHARED_CONV_CHANNEL: 64
@@ -177,7 +203,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.2
+        SCORE_THRESH: 0.1
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
@@ -185,18 +211,17 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.01
+            NMS_THRESH: 0.7
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
-            SCORE_TYPE: iou
 
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 30
+    NUM_EPOCHS: 40
 
     OPTIMIZER: adam_onecycle
-    LR: 0.01
+    LR: 0.003
     WEIGHT_DECAY: 0.001
     MOMENTUM: 0.9
 
@@ -210,4 +235,5 @@ OPTIMIZATION:
     LR_WARMUP: False
     WARMUP_EPOCH: 1
 
-    GRAD_NORM_CLIP: 10
+    GRAD_NORM_CLIP: 3
+

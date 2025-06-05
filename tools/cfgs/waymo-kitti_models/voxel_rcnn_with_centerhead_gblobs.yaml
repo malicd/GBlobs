@@ -1,6 +1,33 @@
-CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
-DATA_CONFIG: 
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+    POINT_FEATURE_ENCODING: {
+        encoding_type: absolute_coordinates_encoding,
+        used_feature_list: ['x', 'y', 'z'],
+        src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation'],
+    }
+    DATA_PROCESSOR:
+        -   NAME: mask_points_and_boxes_outside_range
+            REMOVE_OUTSIDE_BOXES: True
+            STRICT_MASK: True
+
+        -   NAME: shuffle_points
+            SHUFFLE_ENABLED: {
+                'train': True,
+                'test': True
+            }
+
+        - NAME: transform_points_to_voxels
+          VOXEL_SIZE: [0.1, 0.1, 0.15]
+          MAX_POINTS_PER_VOXEL: 10
+          MAX_NUMBER_OF_VOXELS: {
+            'train': 150000,
+            'test': 150000
+          }
+
+TEST_DATA_CONFIG: 
+    CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
     POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
     FOV_POINTS_ONLY: False
@@ -58,7 +85,7 @@ MODEL:
         CLASS_AGNOSTIC: False
 
         CLASS_NAMES_EACH_HEAD: [
-            [ 'Car', 'Pedestrian', 'Cyclist' ]
+            ['Vehicle', 'Pedestrian', 'Cyclist']
         ]
 
         SHARED_CONV_CHANNEL: 64

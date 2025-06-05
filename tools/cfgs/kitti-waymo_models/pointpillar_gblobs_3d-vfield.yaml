@@ -1,6 +1,60 @@
-CLASS_NAMES: ['Vehicle']
+CLASS_NAMES: ['Car']
 
 DATA_CONFIG: 
+    _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
+    POINT_CLOUD_RANGE: [0, -39.68, -2, 69.12, 39.68, 4]
+    SHIFT_COOR: [0.0, 0.0, 1.6]
+    POINT_FEATURE_ENCODING: {
+        encoding_type: absolute_coordinates_encoding,
+        used_feature_list: ['x', 'y', 'z'],
+        src_feature_list: ['x', 'y', 'z', 'intensity'],
+    }
+    DATA_PROCESSOR:
+        - NAME: mask_points_and_boxes_outside_range
+          REMOVE_OUTSIDE_BOXES: True
+
+        - NAME: shuffle_points
+          SHUFFLE_ENABLED: {
+            'train': True,
+            'test': False
+          }
+
+        - NAME: transform_points_to_voxels
+          VOXEL_SIZE: [0.16, 0.16, 6]
+          MAX_POINTS_PER_VOXEL: 32
+          MAX_NUMBER_OF_VOXELS: {
+            'train': 16000,
+            'test': 40000
+          }
+    DATA_AUGMENTOR:
+        DISABLE_AUG_LIST: ['placeholder']
+        AUG_CONFIG_LIST:
+            - NAME: gt_sampling
+              USE_ROAD_PLANE: True
+              DB_INFO_PATH:
+                  - kitti_dbinfos_train.pkl
+              PREPARE: {
+                 filter_by_min_points: ['Car:5'],
+                 filter_by_difficulty: [-1],
+              }
+
+              SAMPLE_GROUPS: ['Car:15']
+              NUM_POINT_FEATURES: 4
+              DATABASE_WITH_FAKELIDAR: False
+              REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+              LIMIT_WHOLE_SCENE: False
+
+            - NAME: random_world_flip
+              ALONG_AXIS_LIST: ['x']
+
+            - NAME: random_world_rotation
+              WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
+
+            - NAME: random_world_scaling
+              WORLD_SCALE_RANGE: [0.95, 1.05]
+
+TEST_DATA_CONFIG: 
+    CLASS_NAMES: ['Vehicle']
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
     POINT_CLOUD_RANGE: [0, -39.68, -2, 69.12, 39.68, 4]
     POINT_FEATURE_ENCODING: {
@@ -22,8 +76,8 @@ DATA_CONFIG:
           VOXEL_SIZE: [0.16, 0.16, 6]
           MAX_POINTS_PER_VOXEL: 32
           MAX_NUMBER_OF_VOXELS: {
-            'train': 15000,
-            'test': 15000
+            'train': 150000,
+            'test': 150000
           }
 
 MODEL:
@@ -58,7 +112,7 @@ MODEL:
 
         ANCHOR_GENERATOR_CONFIG: [
             {
-                'class_name': 'Vehicle',
+                'class_name': 'Car',
                 'anchor_sizes': [[3.9, 1.6, 1.56]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [0],
@@ -95,7 +149,7 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.01
+            NMS_THRESH: 0.7
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
