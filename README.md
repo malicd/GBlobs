@@ -31,7 +31,7 @@ LiDAR-based 3D detectors need large datasets for training, yet they struggle to 
 
 ## Installation/Getting Started <a name="installation_getting_started"/>
 
-This project extends the [OpenPCDet](https://github.com/open-mmlab/OpenPCDet?tab=readme-ov-file). To get started, you'll need to set up your environment and prepare the necessary datasets by following OpenPCDet's [installation instructions](docs/INSTALL.md) and [getting started guide](docs/GETTING_STARTED.md).
+This project extends the [OpenPCDet](https://github.com/open-mmlab/OpenPCDet?tab=readme-ov-file) framework. To get started, you'll need to set up your environment and prepare the necessary datasets by following OpenPCDet's [installation instructions](docs/INSTALL.md) and [getting started guide](docs/GETTING_STARTED.md).
 
 ## Obtaining the Checkpoints <a name="obtaining_checkpoints"/>
 
@@ -72,21 +72,21 @@ The results presented in Table 2 of the paper can be reproduced using the follow
 | nuScenes→KITTI | 53.98/33.22/25.68 | [`cfgs/nuscenes-kitti_models/voxel_rcnn_with_centerhead_gblobs`](tools/cfgs/nuscenes-kitti_models/voxel_rcnn_with_centerhead_gblobs)           | [`../ckpts/nuscenes-kitti_models/voxel_rcnn_with_centerhead_gblobs/checkpoint_epoch_30.pth`](https://huggingface.co/dmalic/GBlobs/blob/main/nuscenes-kitti_models/voxel_rcnn_with_centerhead_gblobs/checkpoint_epoch_30.pth) |
 | Waymo→nuScenes | 20.08/9.13/5.10   | [`cfgs/waymo-nuscenes_models/voxel_rcnn_with_centerhead_gblobs.yaml`](tools/cfgs/waymo-nuscenes_models/voxel_rcnn_with_centerhead_gblobs.yaml) | -                                                                                                                                                                                                                            |
 
-KITTI→Waymo results from Table 3 can be reproduced with:
-| Model       | 3D AP | Config                                                                                                                         | Ckpt |
-|-------------|-------|--------------------------------------------------------------------------------------------------------------------------------|------|
-| PointPillar | 48.92 | [`cfgs/kitti-waymo_models/pointpillar_gblobs_3d-vfield.yaml`](tools/cfgs/kitti-waymo_models/pointpillar_gblobs_3d-vfield.yaml) |      |
-| SECOND      | 56.52 | [`cfgs/kitti-waymo_models/second_gblobs_3d-vfield.yaml`](tools/cfgs/kitti-waymo_models/second_gblobs_3d-vfield.yaml)           |      |
-| Part-A^2    | 60.20 | [`cfgs/kitti-waymo_models/PartA2_gblobs_3d-vfiled.yaml`](cfgs/kitti-waymo_models/PartA2_gblobs_3d-vfiled.yaml)                 |      |
+KITTI→Waymo results from Table 3 of the paper can be reproduced with:
+| Model       | 3D AP | Config                                                                                                                         | Ckpt                                                                                                                                                                                                         |
+|-------------|-------|--------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| PointPillar | 48.92 | [`cfgs/kitti-waymo_models/pointpillar_gblobs_3d-vfield.yaml`](tools/cfgs/kitti-waymo_models/pointpillar_gblobs_3d-vfield.yaml) | [`../ckpts/kitti-waymo_models/pointpillar_gblobs_3d-vfield/checkpoint_epoch_80.pth`](https://huggingface.co/dmalic/GBlobs/blob/main/kitti-waymo_models/pointpillar_gblobs_3d-vfield/checkpoint_epoch_80.pth) |
+| SECOND      | 56.52 | [`cfgs/kitti-waymo_models/second_gblobs_3d-vfield.yaml`](tools/cfgs/kitti-waymo_models/second_gblobs_3d-vfield.yaml)           | [`../ckpts/kitti-waymo_models/second_gblobs_3d-vfield/checkpoint_epoch_80.pth`](https://huggingface.co/dmalic/GBlobs/blob/main/kitti-waymo_models/second_gblobs_3d-vfield/checkpoint_epoch_80.pth)           |
+| Part-A^2    | 60.20 | [`cfgs/kitti-waymo_models/PartA2_gblobs_3d-vfiled.yaml`](cfgs/kitti-waymo_models/PartA2_gblobs_3d-vfiled.yaml)                 | [`../ckpts/kitti-waymo_models/PartA2_gblobs_3d-vfiled/checkpoint_epoch_80.pth`](https://huggingface.co/dmalic/GBlobs/blob/main/kitti-waymo_models/PartA2_gblobs_3d-vfiled/checkpoint_epoch_80.pth)           |
 
 ### Multi-source Domain Generalization <a name="multi_source_dg"/>
-To reproduce the multi-source domain generalization results presented in Table 4, use the following:
-| Target*  | mAP   | Config                                                                                                           | Ckpt |
-|----------|-------|------------------------------------------------------------------------------------------------------------------|------|
-| KITTI    | 53.92 | [`cfgs/mdt3d_models/centerpoint_gblobs_kitti.yaml`](tools/cfgs/mdt3d_models/centerpoint_gblobs_kitti.yaml)       | -    |
-| ONCE     | 37.77 | [`cfgs/mdt3d_models/centerpoint_gblobs_nuscenes.yaml`](tools/cfgs/mdt3d_models/centerpoint_gblobs_nuscenes.yaml) | -    |
-| nuScenes | 8.15  | [`cfgs/mdt3d_models/centerpoint_gblobs_once.yaml`](tools/cfgs/mdt3d_models/centerpoint_gblobs_once.yaml)         | -    |
-| Waymo    | 23.81 | [`cfgs/mdt3d_models/centerpoint_gblobs_waymo.yaml`](tools/cfgs/mdt3d_models/centerpoint_gblobs_waymo.yaml)       |      |
+To reproduce the multi-source domain generalization results presented in Table 4 of the paper, use the following:
+| Target*  | mAP   | Config                                                                                                           | Ckpt                                                                                                                                                                                     |
+|----------|-------|------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| KITTI    | 53.92 | [`cfgs/mdt3d_models/centerpoint_gblobs_kitti.yaml`](tools/cfgs/mdt3d_models/centerpoint_gblobs_kitti.yaml)       | -                                                                                                                                                                                        |
+| ONCE     | 37.77 | [`cfgs/mdt3d_models/centerpoint_gblobs_nuscenes.yaml`](tools/cfgs/mdt3d_models/centerpoint_gblobs_nuscenes.yaml) | -                                                                                                                                                                                        |
+| nuScenes | 8.15  | [`cfgs/mdt3d_models/centerpoint_gblobs_once.yaml`](tools/cfgs/mdt3d_models/centerpoint_gblobs_once.yaml)         | -                                                                                                                                                                                        |
+| Waymo    | 23.81 | [`cfgs/mdt3d_models/centerpoint_gblobs_waymo.yaml`](tools/cfgs/mdt3d_models/centerpoint_gblobs_waymo.yaml)       | [`../ckpts/mdt3d_models/centerpoint_gblobs_waymo/checkpoint_epoch_30.pth`](https://huggingface.co/dmalic/GBlobs/blob/main/mdt3d_models/centerpoint_gblobs_waymo/checkpoint_epoch_30.pth) |
 
 \* Target refers to the dataset that was excluded from the training and used solely for evaluating the model's performance
 
