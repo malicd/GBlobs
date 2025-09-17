@@ -1,6 +1,5 @@
 import copy
 import pickle
-from functools import partial
 
 import numpy as np
 from skimage import io
@@ -33,16 +32,6 @@ class KittiDataset(DatasetTemplate):
         self.kitti_infos = []
         self.include_kitti_data(self.mode)
 
-        # self.ref_i = np.load(self.root_path / 'waymo_intensities.npy')
-
-    @property
-    def infos(self):
-        return self.kitti_infos
-
-    @infos.setter
-    def infos(self, value):
-        self.kitti_infos = value
-
     def include_kitti_data(self, mode):
         if self.logger is not None:
             self.logger.info('Loading KITTI dataset')
@@ -72,11 +61,9 @@ class KittiDataset(DatasetTemplate):
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
     def get_lidar(self, idx):
-        lidar_file = self.root_split_path / "velodyne" / ("%s.bin" % idx)
+        lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
         assert lidar_file.exists()
-        points_all = np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
-
-        return points_all
+        return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
 
     def get_image(self, idx):
         """
@@ -142,19 +129,19 @@ class KittiDataset(DatasetTemplate):
         return plane
 
     @staticmethod
-    def get_fov_flag(pts_rect, img_shape, calib, margin=0):
+    def get_fov_flag(pts_rect, img_shape, calib):
         """
         Args:
             pts_rect:
             img_shape:
             calib:
-            margin
+
         Returns:
 
         """
         pts_img, pts_rect_depth = calib.rect_to_img(pts_rect)
-        val_flag_1 = np.logical_and(pts_img[:, 0] >= 0 - margin, pts_img[:, 0] < img_shape[1] + margin)
-        val_flag_2 = np.logical_and(pts_img[:, 1] >= 0 - margin, pts_img[:, 1] < img_shape[0] + margin)
+        val_flag_1 = np.logical_and(pts_img[:, 0] >= 0, pts_img[:, 0] < img_shape[1])
+        val_flag_2 = np.logical_and(pts_img[:, 1] >= 0, pts_img[:, 1] < img_shape[0])
         val_flag_merge = np.logical_and(val_flag_1, val_flag_2)
         pts_valid_flag = np.logical_and(val_flag_merge, pts_rect_depth >= 0)
 
@@ -286,7 +273,8 @@ class KittiDataset(DatasetTemplate):
         with open(db_info_save_path, 'wb') as f:
             pickle.dump(all_db_infos, f)
 
-    def generate_prediction_dicts(self, batch_dict, pred_dicts, class_names, output_path=None):
+    @staticmethod
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
         """
         Args:
             batch_dict:
@@ -319,21 +307,8 @@ class KittiDataset(DatasetTemplate):
             if pred_scores.shape[0] == 0:
                 return pred_dict
 
-            if self.dataset_cfg.get('SHIFT_COOR', None):
-                pred_boxes[:, 0:3] -= self.dataset_cfg.SHIFT_COOR
-
             calib = batch_dict['calib'][batch_index]
             image_shape = batch_dict['image_shape'][batch_index].cpu().numpy()
-
-            # BOX FILTER
-            if self.dataset_cfg.get('TEST', None) and self.dataset_cfg.TEST.BOX_FILTER['FOV_FILTER']:
-                box_preds_lidar_center = pred_boxes[:, 0:3]
-                pts_rect = calib.lidar_to_rect(box_preds_lidar_center)
-                fov_flag = self.get_fov_flag(pts_rect, image_shape, calib, margin=5)
-                pred_boxes = pred_boxes[fov_flag]
-                pred_labels = pred_labels[fov_flag]
-                pred_scores = pred_scores[fov_flag]
-
             pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes, calib)
             pred_boxes_img = box_utils.boxes3d_kitti_camera_to_imageboxes(
                 pred_boxes_camera, calib, image_shape=image_shape
@@ -418,9 +393,6 @@ class KittiDataset(DatasetTemplate):
             gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
             gt_boxes_lidar = box_utils.boxes3d_kitti_camera_to_lidar(gt_boxes_camera, calib)
 
-            if self.dataset_cfg.get('SHIFT_COOR', None):
-                gt_boxes_lidar[:, 0:3] += self.dataset_cfg.SHIFT_COOR
-
             input_dict.update({
                 'gt_names': gt_names,
                 'gt_boxes': gt_boxes_lidar
@@ -438,9 +410,6 @@ class KittiDataset(DatasetTemplate):
                 pts_rect = calib.lidar_to_rect(points[:, 0:3])
                 fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
                 points = points[fov_flag]
-            if self.dataset_cfg.get('SHIFT_COOR', None):
-                points[:, 0:3] += np.array(self.dataset_cfg.SHIFT_COOR, dtype=np.float32)
-
             input_dict['points'] = points
 
         if "images" in get_item_list:
@@ -513,4 +482,3 @@ if __name__ == '__main__':
             data_path=ROOT_DIR / 'data' / 'kitti',
             save_path=ROOT_DIR / 'data' / 'kitti'
         )
-

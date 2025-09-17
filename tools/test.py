@@ -191,29 +191,17 @@ def main():
 
     ckpt_dir = args.ckpt_dir if args.ckpt_dir is not None else output_dir / 'ckpt'
 
-    if cfg.DATA_CONFIG.get('TEST_DATASET', None) is not None:
-        dataset_cfg = cfg.DATA_CONFIG.get(cfg.DATA_CONFIG.get('TEST_DATASET', None), cfg.DATA_CONFIG)
-        if 'POINT_CLOUD_RANGE' not in dataset_cfg:
-            dataset_cfg['POINT_CLOUD_RANGE'] = cfg.DATA_CONFIG.POINT_CLOUD_RANGE
-        if 'DATA_PROCESSOR' not in dataset_cfg:
-            dataset_cfg['DATA_PROCESSOR'] = cfg.DATA_CONFIG.DATA_PROCESSOR
-        class_names = dataset_cfg.get('CLASS_NAMES', cfg.CLASS_NAMES)
-    elif (dataset_cfg := cfg.get('TEST_DATA_CONFIG', None)) is not None:
-        class_names = dataset_cfg.CLASS_NAMES
-        if cfg.MODEL.DENSE_HEAD.NAME == "CenterHead":
-            cfg.MODEL.DENSE_HEAD.CLASS_NAMES_EACH_HEAD[0] = class_names
-    else:
-        dataset_cfg = cfg.DATA_CONFIG
-        class_names = cfg.CLASS_NAMES
+    if cfg.DATA_CONFIG.TTA and args.batch_size != 1:
+        logger.info(f"The batch size is being overwritten from {args.batch_size} to 1 due to TTA.")
 
     test_set, test_loader, sampler = build_dataloader(
-        dataset_cfg=dataset_cfg,
-        class_names=class_names,
-        batch_size=args.batch_size,
+        dataset_cfg=cfg.DATA_CONFIG,
+        class_names=cfg.CLASS_NAMES,
+        batch_size=1 if cfg.DATA_CONFIG.TTA else args.batch_size,
         dist=dist_test, workers=args.workers, logger=logger, training=False
     )
 
-    model = build_network(model_cfg=cfg.MODEL, num_class=len(class_names), dataset=test_set)
+    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
     with torch.no_grad():
         if args.eval_all:
             repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir, dist_test=dist_test)

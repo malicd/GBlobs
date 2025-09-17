@@ -16,6 +16,7 @@ class DatasetTemplate(torch_data.Dataset):
         super().__init__()
         self.dataset_cfg = dataset_cfg
         self.training = training
+        self.tta = self.dataset_cfg.get("TTA", False)
         self.class_names = class_names
         self.logger = logger
         self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH)
@@ -28,9 +29,23 @@ class DatasetTemplate(torch_data.Dataset):
             self.dataset_cfg.POINT_FEATURE_ENCODING,
             point_cloud_range=self.point_cloud_range
         )
-        self.data_augmentor = DataAugmentor(
-            self.root_path, self.dataset_cfg.DATA_AUGMENTOR, self.class_names, logger=self.logger
-        ) if self.training else None
+
+        if self.tta and not self.training:
+            self.data_augmentor = DataAugmentor(
+                self.root_path,
+                self.dataset_cfg.TTA_DATA_AUGMENTOR,
+                self.class_names,
+                logger=self.logger,
+            )
+
+        if self.training:
+            self.data_augmentor = DataAugmentor(
+                self.root_path,
+                self.dataset_cfg.DATA_AUGMENTOR,
+                self.class_names,
+                logger=self.logger,
+            )
+
         self.data_processor = DataProcessor(
             self.dataset_cfg.DATA_PROCESSOR, point_cloud_range=self.point_cloud_range,
             training=self.training, num_point_features=self.point_feature_encoder.num_point_features
@@ -179,34 +194,33 @@ class DatasetTemplate(torch_data.Dataset):
         if self.training:
             assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
             gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
-
-            # at this point, points & gt_boxes would already be shifted
-            # shifting them back to the original position to enable correct db sampling
-            if self.dataset_cfg.get('SHIFT_COOR', None):
-                data_dict['points'][:, 0:3] -= np.array(self.dataset_cfg.SHIFT_COOR, dtype=np.float32)
-                data_dict['gt_boxes'][:, 0:3] -= np.array(self.dataset_cfg.SHIFT_COOR, dtype=np.float32)
-
+            
             if 'calib' in data_dict:
                 calib = data_dict['calib']
-
             data_dict = self.data_augmentor.forward(
                 data_dict={
                     **data_dict,
                     'gt_boxes_mask': gt_boxes_mask
                 }
             )
+            if 'calib' in data_dict:
+                data_dict['calib'] = calib
 
-            # reseting the shift
-            if self.dataset_cfg.get('SHIFT_COOR', None):
-                data_dict['points'][:, 0:3] += np.array(self.dataset_cfg.SHIFT_COOR, dtype=np.float32)
-                data_dict['gt_boxes'][:, 0:3] += np.array(self.dataset_cfg.SHIFT_COOR, dtype=np.float32)
-
-            # for gt_sampling
-            cls_map = self.dataset_cfg.get('CLASS_MAP', None)
-            if cls_map is not None:
-                for i in range(data_dict['gt_names'].shape[0]):
-                    data_dict['gt_names'][i] = cls_map.get(data_dict['gt_names'][i], data_dict['gt_names'][i])
-
+        if self.tta and not self.training:
+            if 'calib' in data_dict:
+                calib = data_dict['calib']
+            
+            dummy_boxes = False
+            if 'gt_boxes' not in data_dict:
+                data_dict['gt_boxes'] = np.zeros((10, 7)) # dummy boxes
+                dummy_boxes = True
+            data_dict = self.data_augmentor.forward(
+                data_dict={
+                    **data_dict,
+                }
+            )
+            if dummy_boxes:
+                data_dict.pop('gt_boxes') # remove dummy boxes
             if 'calib' in data_dict:
                 data_dict['calib'] = calib
 
@@ -239,6 +253,9 @@ class DatasetTemplate(torch_data.Dataset):
 
     @staticmethod
     def collate_batch(batch_list, _unused=False):
+        if isinstance(batch_list[0], list):
+            batch_list = sum(batch_list, [])
+
         data_dict = defaultdict(list)
         for cur_sample in batch_list:
             for key, val in cur_sample.items():

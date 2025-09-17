@@ -74,7 +74,8 @@ class Detector3DTemplate(nn.Module):
             input_channels=model_info_dict['num_point_features'],
             grid_size=model_info_dict['grid_size'],
             voxel_size=model_info_dict['voxel_size'],
-            point_cloud_range=model_info_dict['point_cloud_range']
+            point_cloud_range=model_info_dict['point_cloud_range'],
+            class_names=self.class_names,
         )
         model_info_dict['module_list'].append(backbone_3d_module)
         model_info_dict['num_point_features'] = backbone_3d_module.num_point_features
@@ -328,6 +329,7 @@ class Detector3DTemplate(nn.Module):
         return recall_dict
 
     def _load_state_dict(self, model_state_disk, *, strict=True):
+        strict = False
         state_dict = self.state_dict()  # local cache of state_dict
 
         spconv_keys = find_all_spconv_keys(self)
@@ -335,6 +337,7 @@ class Detector3DTemplate(nn.Module):
         update_model_state = {}
         for key, val in model_state_disk.items():
             if key in spconv_keys and key in state_dict and state_dict[key].shape != val.shape:
+                continue
                 # with different spconv versions, we need to adapt weight shapes for spconv blocks
                 # adapt spconv weights from version 1.x to version 2.x if you used weights from spconv 1.x
 

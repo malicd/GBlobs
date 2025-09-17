@@ -305,7 +305,7 @@ class Stage_ReductionAtt_Block(nn.Module):
         key = value = x.permute(0, 2, 1)
         key = key + self.pos_embedding.unsqueeze(0).repeat(src.shape[0], 1, 1)
         query = src.clone()
-        output = self.self_attn(query, key, value, key_padding_mask)[0]
+        output = self.self_attn(query, key, value, key_padding_mask.bool())[0]
         src = self.norm(output + src).squeeze(1)
         return src
 

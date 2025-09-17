@@ -10,7 +10,6 @@ from pathlib import Path
 from ..dataset import DatasetTemplate
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils
-from ...utils import common_utils
 from .once_toolkits import Octopus
 
 class ONCEDataset(DatasetTemplate):
@@ -37,19 +36,6 @@ class ONCEDataset(DatasetTemplate):
 
         self.once_infos = []
         self.include_once_data(self.split)
-
-        class_map = self.dataset_cfg.get('CLASS_MAP', None)
-        if class_map is not None:
-            for oi in self.once_infos:
-                oi['annos']['name'] = np.array([class_map.get(class_name, class_name) for class_name in oi['annos']['name']])
-
-    @property
-    def infos(self):
-        return self.once_infos
-
-    @infos.setter
-    def infos(self, value):
-        self.once_infos = value
 
     def include_once_data(self, split):
         if self.logger is not None:
@@ -84,15 +70,8 @@ class ONCEDataset(DatasetTemplate):
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_seq_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
-    def remove_ego_points(self, points, center_radius=2.5):
-        mask = ~((np.abs(points[:, 0]) < center_radius) & (np.abs(points[:, 1]) < center_radius))
-        return points[mask]
-
     def get_lidar(self, sequence_id, frame_id):
-        points_all = self.toolkits.load_point_cloud(sequence_id, frame_id)
-        points_all[:, 3] = np.tanh(points_all[:, 3])
-        points_all = self.remove_ego_points(points_all)
-        return points_all
+        return self.toolkits.load_point_cloud(sequence_id, frame_id)
 
     def get_image(self, sequence_id, frame_id, cam_name):
         return self.toolkits.load_image(sequence_id, frame_id, cam_name)
@@ -121,7 +100,7 @@ class ONCEDataset(DatasetTemplate):
             points_img = np.dot(points_lidar, cam_intri.T)
             points_img = points_img / points_img[:, [2]]
             uv = points_img[:, [0,1]]
-            # depth = points_img[:, [2]]
+            #depth = points_img[:, [2]]
             seg_map = np.array(Image.open(img_path)) # (H, W)
             H, W = seg_map.shape
             seg_feats = np.zeros((H*W, num_classes))
@@ -153,12 +132,6 @@ class ONCEDataset(DatasetTemplate):
         seq_id = info['sequence_id']
         points = self.get_lidar(seq_id, frame_id)
 
-        if self.dataset_cfg.get('SHIFT_COOR', None):
-            points[:, 0:3] += np.array(self.dataset_cfg.SHIFT_COOR, dtype=np.float32)
-
-        if (rot := self.dataset_cfg.get('ROTATE_Z', None)) is not None:
-            points = common_utils.rotate_points_along_z(points[None], np.array(rot))[0]
-
         if self.dataset_cfg.get('POINT_PAINTING', False):
             points = self.point_painting(points, info)
 
@@ -169,20 +142,9 @@ class ONCEDataset(DatasetTemplate):
 
         if 'annos' in info:
             annos = info['annos']
-            gt_boxes_lidar = annos['boxes_3d']
-
-            if self.dataset_cfg.get('SHIFT_COOR', None):
-                gt_boxes_lidar[:, 0:3] += self.dataset_cfg.SHIFT_COOR
-
-            if (rot := self.dataset_cfg.get("ROTATE_Z", None)) is not None:
-                gt_boxes_lidar[:, 0:3] = common_utils.rotate_points_along_z(
-                    gt_boxes_lidar[None, :, 0:3], np.array(rot)
-                )[0]
-                gt_boxes_lidar[:, 6] += np.array(rot)
-
             input_dict.update({
                 'gt_names': annos['name'],
-                'gt_boxes': gt_boxes_lidar,
+                'gt_boxes': annos['boxes_3d'],
                 'num_points_in_gt': annos.get('num_points_in_gt', None)
             })
 
@@ -199,7 +161,7 @@ class ONCEDataset(DatasetTemplate):
         """
         # dataset json format
         {
-            'meta_info':
+            'meta_info': 
             'calib': {
                 'cam01': {
                     'cam_to_velo': list
@@ -249,7 +211,7 @@ class ONCEDataset(DatasetTemplate):
                     'cam01': np.array
                     ....
                 }
-            }
+            }          
         }
         """
         def process_single_sequence(seq_idx):
@@ -381,7 +343,8 @@ class ONCEDataset(DatasetTemplate):
         with open(db_info_save_path, 'wb') as f:
             pickle.dump(all_db_infos, f)
 
-    def generate_prediction_dicts(self, batch_dict, pred_dicts, class_names, output_path=None):
+    @staticmethod
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
         def get_template_prediction(num_samples):
             ret_dict = {
                 'name': np.zeros(num_samples), 'score': np.zeros(num_samples),
@@ -396,15 +359,6 @@ class ONCEDataset(DatasetTemplate):
             pred_dict = get_template_prediction(pred_scores.shape[0])
             if pred_scores.shape[0] == 0:
                 return pred_dict
-
-            if self.dataset_cfg.get('SHIFT_COOR', None):
-                pred_boxes[:, 0:3] -= self.dataset_cfg.SHIFT_COOR
-
-            if (rot := self.dataset_cfg.get("ROTATE_Z", None)) is not None:
-                pred_boxes[:, 0:3] = common_utils.rotate_points_along_z(
-                    pred_boxes[None, :, 0:3], np.array(rot) * -1
-                )[0]
-                pred_boxes[:, 6] += np.array(rot) * -1
 
             pred_dict['name'] = np.array(class_names)[pred_labels - 1]
             pred_dict['score'] = pred_scores
@@ -422,98 +376,14 @@ class ONCEDataset(DatasetTemplate):
                 raise NotImplementedError
         return annos
 
-    def kitti_eval(self, eval_det_annos, eval_gt_annos, class_names):
-        from ..kitti.kitti_object_eval_python import eval as kitti_eval
-
-        map_name_to_kitti = {
-            'Car': 'Car',
-            'Pedestrian': 'Pedestrian',
-            'Cyclist': 'Cyclist',
-        }
-
-        def transform_to_kitti_format(annos, info_with_fakelidar=False, is_gt=False):
-            for anno in annos:
-                if 'name' not in anno:
-                    anno['name'] = anno['gt_names']
-                    anno.pop('gt_names')
-
-                for k in range(anno['name'].shape[0]):
-                    if anno['name'][k] in map_name_to_kitti:
-                        anno['name'][k] = map_name_to_kitti[anno['name'][k]]
-                    else:
-                        anno['name'][k] = 'Person_sitting'
-
-                """
-                if 'boxes_lidar' in anno:
-                    gt_boxes_lidar = anno['boxes_lidar'].copy()
-                else:
-                    gt_boxes_lidar = anno['gt_boxes'].copy()
-                """
-                gt_boxes_lidar = anno['boxes_3d'].copy()
-
-                # filter by fov
-                if is_gt and self.dataset_cfg.get('GT_FILTER', None):
-                    if self.dataset_cfg.GT_FILTER.get('FOV_FILTER', None):
-                        fov_gt_flag = self.extract_fov_gt(
-                            gt_boxes_lidar, self.dataset_cfg['FOV_DEGREE'], self.dataset_cfg['FOV_ANGLE']
-                        )
-                        gt_boxes_lidar = gt_boxes_lidar[fov_gt_flag]
-                        anno['name'] = anno['name'][fov_gt_flag]
-
-                anno['bbox'] = np.zeros((len(anno['name']), 4))
-                anno['bbox'][:, 2:4] = 50  # [0, 0, 50, 50]
-                anno['truncated'] = np.zeros(len(anno['name']))
-                anno['occluded'] = np.zeros(len(anno['name']))
-
-                if len(gt_boxes_lidar) > 0:
-                    if info_with_fakelidar:
-                        gt_boxes_lidar = box_utils.boxes3d_kitti_fakelidar_to_lidar(gt_boxes_lidar)
-
-                    gt_boxes_lidar[:, 2] -= gt_boxes_lidar[:, 5] / 2
-                    anno['location'] = np.zeros((gt_boxes_lidar.shape[0], 3))
-                    anno['location'][:, 0] = -gt_boxes_lidar[:, 1]  # x = -y_lidar
-                    anno['location'][:, 1] = -gt_boxes_lidar[:, 2]  # y = -z_lidar
-                    anno['location'][:, 2] = gt_boxes_lidar[:, 0]  # z = x_lidar
-                    dxdydz = gt_boxes_lidar[:, 3:6]
-                    anno['dimensions'] = dxdydz[:, [0, 2, 1]]  # lwh ==> lhw
-                    anno['rotation_y'] = -gt_boxes_lidar[:, 6] - np.pi / 2.0
-                    anno['alpha'] = -np.arctan2(-gt_boxes_lidar[:, 1], gt_boxes_lidar[:, 0]) + anno['rotation_y']
-                else:
-                    anno['location'] = anno['dimensions'] = np.zeros((0, 3))
-                    anno['rotation_y'] = anno['alpha'] = np.zeros(0)
-
-        transform_to_kitti_format(eval_det_annos)
-        transform_to_kitti_format(eval_gt_annos, info_with_fakelidar=False, is_gt=True)
-
-        kitti_class_names = []
-        for x in class_names:
-            if x in map_name_to_kitti:
-                kitti_class_names.append(map_name_to_kitti[x])
-            else:
-                kitti_class_names.append('Person_sitting')
-        ap_result_str, ap_dict = kitti_eval.get_official_eval_result(
-            gt_annos=eval_gt_annos, dt_annos=eval_det_annos, current_classes=kitti_class_names
-        )
-        return ap_result_str, ap_dict
-
     def evaluation(self, det_annos, class_names, **kwargs):
+        from .once_eval.evaluation import get_evaluation_results
 
         eval_det_annos = copy.deepcopy(det_annos)
         eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.once_infos]
+        ap_result_str, ap_dict = get_evaluation_results(eval_gt_annos, eval_det_annos, class_names)
 
-        if kwargs['eval_metric'] == 'kitti':
-            return self.kitti_eval(eval_det_annos, eval_gt_annos, class_names)
-        elif kwargs['eval_metric'] == 'once':
-            from .once_eval.evaluation import get_evaluation_results
-            ap_result_str, ap_dict = get_evaluation_results(
-                eval_gt_annos,
-                eval_det_annos,
-                ["Car", "Bus", "Truck", "Pedestrian", "Cyclist"],
-                True,
-            )
-            return ap_result_str, ap_dict
-        else:
-            raise NotImplementedError
+        return ap_result_str, ap_dict
 
 def create_once_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
     dataset = ONCEDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)

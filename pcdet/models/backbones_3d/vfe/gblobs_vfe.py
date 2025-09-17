@@ -31,6 +31,7 @@ class GBlobsVFE(VFETemplate):
         )  # use relative distance instead of absolute
 
     def get_output_feature_dim(self):
+        return 14
         return (
             0 if self.cov_only else self.num_point_features
         ) + self.num_point_features**2  # (rel) position (N) + covariance (NxN)
@@ -57,6 +58,11 @@ class GBlobsVFE(VFETemplate):
         )
         points_mean = points_mean / normalizer
 
+        voxel_features, _ = torch.split(voxel_features, [3, 2], dim=2)
+
+        points_mean, features_mean = torch.split(points_mean, [3, 2], dim=1)
+        features_mean[:, 0] = 1. # set intensity of ALL datasets to 1 (to match robosense)
+
         weight = (voxel_features.sum(2, keepdim=True) != 0.0).float()
         cov = torch.einsum(
             "nka,nkb->nab",
@@ -80,14 +86,7 @@ class GBlobsVFE(VFETemplate):
             ).float()
             pos_features = points_mean[:, 0:3] - voxel_centers
 
-        features = torch.cat(
-            (
-                [cov.reshape(-1, self.num_point_features**2)]
-                if self.cov_only
-                else [pos_features, cov.reshape(-1, self.num_point_features**2)]
-            ),
-            dim=1,
-        ).contiguous()
+        features = torch.cat([pos_features, cov.reshape(-1, 9), features_mean], dim=1,).contiguous()
 
         batch_dict["voxel_features"] = features
 

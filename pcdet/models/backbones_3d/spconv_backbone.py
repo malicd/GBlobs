@@ -181,47 +181,6 @@ class VoxelBackBone8x(nn.Module):
         return batch_dict
 
 
-class LVoxelBackBone8x(VoxelBackBone8x):
-    def __init__(self, model_cfg, input_channels, grid_size, **kwargs):
-        super().__init__(model_cfg, input_channels, grid_size, **kwargs)
-
-        block = post_act_block
-        norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
-
-        self.conv_input = spconv.SparseSequential(
-            spconv.SubMConv3d(
-                input_channels, 32, 3, padding=1, bias=False, indice_key="subm1"
-            ),
-            norm_fn(32),
-            nn.ReLU(),
-        )
-
-        self.conv1 = spconv.SparseSequential(
-            block(32, 32, 3, norm_fn=norm_fn, padding=1, indice_key="subm1"),
-        )
-
-        self.conv2 = spconv.SparseSequential(
-            # [1600, 1408, 41] <- [800, 704, 21]
-            block(
-                32,
-                32,
-                3,
-                norm_fn=norm_fn,
-                stride=2,
-                padding=1,
-                indice_key="spconv2",
-                conv_type="spconv",
-            ),
-            block(32, 32, 3, norm_fn=norm_fn, padding=1, indice_key="subm2"),
-            block(32, 32, 3, norm_fn=norm_fn, padding=1, indice_key="subm2"),
-        )
-        self.backbone_channels = {
-            "x_conv1": 32,
-            "x_conv2": 32,
-            "x_conv3": 64,
-            "x_conv4": 64,
-        }
-
 class VoxelResBackBone8x(nn.Module):
     def __init__(self, model_cfg, input_channels, grid_size, **kwargs):
         super().__init__()
@@ -335,46 +294,35 @@ class VoxelResBackBone8x(nn.Module):
         
         return batch_dict
 
-class LVoxelResBackBone8x(VoxelResBackBone8x):
+class VoxelResBackBone8xL(VoxelResBackBone8x):
     def __init__(self, model_cfg, input_channels, grid_size, **kwargs):
         super().__init__(model_cfg, input_channels, grid_size, **kwargs)
-        use_bias = self.model_cfg.get("USE_BIAS", None)
-        norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
 
-        self.sparse_shape = grid_size[::-1] + [1, 0, 0]
+        norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
+        use_bias = self.model_cfg.get('USE_BIAS', None)
+
         self.conv_input = spconv.SparseSequential(
-            spconv.SubMConv3d(
-                input_channels, 32, 3, padding=1, bias=False, indice_key="subm1"
-            ),
+            spconv.SubMConv3d(input_channels, 32, 3, padding=1, bias=False, indice_key='subm1'),
             norm_fn(32),
             nn.ReLU(),
         )
         block = post_act_block
 
         self.conv1 = spconv.SparseSequential(
-            SparseBasicBlock(32, 32, bias=use_bias, norm_fn=norm_fn, indice_key="res1"),
-            SparseBasicBlock(32, 32, bias=use_bias, norm_fn=norm_fn, indice_key="res1"),
+            SparseBasicBlock(32, 32, bias=use_bias, norm_fn=norm_fn, indice_key='res1'),
+            SparseBasicBlock(32, 32, bias=use_bias, norm_fn=norm_fn, indice_key='res1'),
         )
 
         self.conv2 = spconv.SparseSequential(
             # [1600, 1408, 41] <- [800, 704, 21]
-            block(
-                32,
-                32,
-                3,
-                norm_fn=norm_fn,
-                stride=2,
-                padding=1,
-                indice_key="spconv2",
-                conv_type="spconv",
-            ),
-            SparseBasicBlock(32, 32, bias=use_bias, norm_fn=norm_fn, indice_key="res2"),
-            SparseBasicBlock(32, 32, bias=use_bias, norm_fn=norm_fn, indice_key="res2"),
+            block(32, 32, 3, norm_fn=norm_fn, stride=2, padding=1, indice_key='spconv2', conv_type='spconv'),
+            SparseBasicBlock(32, 32, bias=use_bias, norm_fn=norm_fn, indice_key='res2'),
+            SparseBasicBlock(32, 32, bias=use_bias, norm_fn=norm_fn, indice_key='res2'),
         )
 
         self.backbone_channels = {
-            "x_conv1": 32,
-            "x_conv2": 32,
-            "x_conv3": 64,
-            "x_conv4": 128,
+            'x_conv1': 32,
+            'x_conv2': 32,
+            'x_conv3': 64,
+            'x_conv4': 128
         }

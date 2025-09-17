@@ -6,7 +6,6 @@ from torch import Tensor
 from math import pi as PI
 
 
-@torch.jit.script
 def quat_to_mat(quat_wxyz: Tensor) -> Tensor:
     """Convert scalar first quaternion to rotation matrix.
 

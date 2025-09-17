@@ -12,6 +12,7 @@ import tqdm
 from nuscenes.utils.data_classes import Box
 from nuscenes.utils.geometry_utils import transform_matrix
 from pyquaternion import Quaternion
+from pcdet.utils.common_utils import limit_period
 
 map_name_from_general_to_detection = {
     'human.pedestrian.adult': 'pedestrian',
@@ -443,12 +444,13 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
             mask = (num_lidar_pts + num_radar_pts > 0)
 
             locs = np.array([b.center for b in ref_boxes]).reshape(-1, 3)
-            dims = np.array([b.wlh for b in ref_boxes]).reshape(-1, 3)[:, [1, 0, 2]]  # wlh == > dxdydz (lwh)
+            # dims = np.array([b.wlh for b in ref_boxes]).reshape(-1, 3)[:, [1, 0, 2]]  # wlh == > dxdydz (lwh)
+            dims = np.array([b.wlh for b in ref_boxes]).reshape(-1, 3)
             velocity = np.array([b.velocity for b in ref_boxes]).reshape(-1, 3)
             rots = np.array([quaternion_yaw(b.orientation) for b in ref_boxes]).reshape(-1, 1)
             names = np.array([b.name for b in ref_boxes])
             tokens = np.array([b.token for b in ref_boxes])
-            gt_boxes = np.concatenate([locs, dims, rots, velocity[:, :2]], axis=1)
+            gt_boxes = np.concatenate([locs, dims, limit_period(-rots - np.pi / 2), velocity[:, :2]], axis=1)
 
             assert len(annotations) == len(gt_boxes) == len(velocity)
 
@@ -475,11 +477,12 @@ def boxes_lidar_to_nusenes(det_info):
 
     box_list = []
     for k in range(boxes3d.shape[0]):
-        quat = Quaternion(axis=[0, 0, 1], radians=boxes3d[k, 6])
+        quat = Quaternion(axis=[0, 0, 1], radians=limit_period(-boxes3d[k:k+1, 6] - np.pi / 2)[0])
         velocity = (*boxes3d[k, 7:9], 0.0) if boxes3d.shape[1] == 9 else (0.0, 0.0, 0.0)
         box = Box(
             boxes3d[k, :3],
-            boxes3d[k, [4, 3, 5]],  # wlh
+            # boxes3d[k, [4, 3, 5]],  # wlh
+            boxes3d[k, [3, 4, 5]],
             quat, label=labels[k], score=scores[k], velocity=velocity,
         )
         box_list.append(box)

@@ -64,27 +64,6 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         with torch.no_grad():
             pred_dicts, ret_dict = model(batch_dict)
 
-        # OT
-        ot_parmams = cfg.DATA_CONFIG.get("OT_PARAMS", None)
-        if ot_parmams is not None:
-            delta = torch.from_numpy(np.array(ot_parmams)).to(pred_dicts[0]["pred_boxes"].device)
-            for pd_idx in range(pred_dicts.__len__()):
-                pred_dicts[pd_idx]["pred_boxes"][:, 3:6] += delta[
-                    pred_dicts[pd_idx]["pred_labels"]
-                ]
-
-        # large objects
-        large_object_filter = cfg.DATA_CONFIG.get("LO_FILTER", None)
-        if large_object_filter is not None:
-            for pd_idx in range(pred_dicts.__len__()):
-                mask = (
-                    (pred_dicts[pd_idx]["pred_boxes"][:, 3] < large_object_filter[0])
-                    & (pred_dicts[pd_idx]["pred_boxes"][:, 4] < large_object_filter[1])
-                    & (pred_dicts[pd_idx]["pred_boxes"][:, 5] < large_object_filter[2])
-                )
-                for key in pred_dicts[pd_idx]:
-                    pred_dicts[pd_idx][key] = pred_dicts[pd_idx][key][mask]
-
         disp_dict = {}
 
         if getattr(args, 'infer_time', False):

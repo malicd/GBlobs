@@ -92,7 +92,7 @@ class TransFusionHead(nn.Module):
         self.loss_heatmap = loss_utils.GaussianFocalLoss()
         self.loss_heatmap_weight = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['hm_weight']
 
-        self.code_size = 10
+        self.code_size = 8
 
         # a shared convolution
         self.shared_conv = nn.Conv2d(in_channels=input_channels,out_channels=hidden_channel,kernel_size=3,padding=1)
@@ -168,8 +168,9 @@ class TransFusionHead(nn.Module):
         local_max[:, :, padding:(-padding), padding:(-padding)] = local_max_inner
         # for Pedestrian & Traffic_cone in nuScenes
         if self.dataset_name == "nuScenes":
-            local_max[ :, 8, ] = F.max_pool2d(heatmap[:, 8], kernel_size=1, stride=1, padding=0)
-            local_max[ :, 9, ] = F.max_pool2d(heatmap[:, 9], kernel_size=1, stride=1, padding=0)
+            # local_max[ :, 8, ] = F.max_pool2d(heatmap[:, 8], kernel_size=1, stride=1, padding=0)
+            # local_max[ :, 9, ] = F.max_pool2d(heatmap[:, 9], kernel_size=1, stride=1, padding=0)
+            local_max[ :, 5, ] = F.max_pool2d(heatmap[:, 5], kernel_size=1, stride=1, padding=0)
         # for Pedestrian & Cyclist in Waymo
         elif self.dataset_name == "Waymo":
             local_max[ :, 1, ] = F.max_pool2d(heatmap[:, 1], kernel_size=1, stride=1, padding=0)
@@ -382,7 +383,7 @@ class TransFusionHead(nn.Module):
         return loss_all,loss_dict
 
     def encode_bbox(self, bboxes):
-        code_size = 10
+        code_size = 8
         targets = torch.zeros([bboxes.shape[0], code_size]).to(bboxes.device)
         targets[:, 0] = (bboxes[:, 0] - self.point_cloud_range[0]) / (self.feature_map_stride * self.voxel_size[0])
         targets[:, 1] = (bboxes[:, 1] - self.point_cloud_range[1]) / (self.feature_map_stride * self.voxel_size[1])

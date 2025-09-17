@@ -71,3 +71,36 @@ class PointPillarScatter3d(nn.Module):
         batch_spatial_features = batch_spatial_features.view(batch_size, self.num_bev_features_before_compression * self.nz, self.ny, self.nx)
         batch_dict['spatial_features'] = batch_spatial_features
         return batch_dict
+
+
+def scatter_nd(indices, updates, shape):
+    """pytorch edition of tensorflow scatter_nd.
+    this function don't contain except handle code. so use this carefully
+    when indice repeats, don't support repeat add which is supported
+    in tensorflow.
+    """
+    ret = torch.zeros(*shape, dtype=updates.dtype, device=updates.device)
+    ndim = indices.shape[-1]
+    output_shape = list(indices.shape[:-1]) + shape[indices.shape[-1]:]
+    flatted_indices = indices.view(-1, ndim)
+    slices = [flatted_indices[:, i] for i in range(ndim)]
+    slices += [Ellipsis]
+    ret[slices] = updates.view(*output_shape)
+    return ret
+
+class PointPillarScatterReal3d(nn.Module):
+    def __init__(self, model_cfg, grid_size, **kwargs):
+        super().__init__()
+        
+        self.model_cfg = model_cfg
+        self.nx, self.ny, self.nz = self.model_cfg.INPUT_SHAPE
+        self.num_bev_features = self.model_cfg.NUM_BEV_FEATURES
+
+    def forward(self, batch_dict, **kwargs):
+        pillar_features, coords = batch_dict['pillar_features'], batch_dict['voxel_coords']
+        dense = scatter_nd(coords,
+                           pillar_features,
+                           [batch_dict['batch_size'], self.nx, self.ny, self.nz, self.num_bev_features])
+        dense = dense.mean(dim=3)
+        batch_dict['spatial_features'] = dense.transpose(1, 3)
+        return batch_dict
