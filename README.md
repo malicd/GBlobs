@@ -1,4 +1,4 @@
-# RoboSense 2025 Challenge - Track 3: Sensor Placement
+# [RoboSense 2025 Challenge - Track 3: Sensor Placement] LRP Solution
 
 This repository contains the official code and pre-trained checkpoints for our submission to the RoboSense 2025 Challenge, Track 3: Sensor Placement. Our approach is built upon [**GBlobs**](https://arxiv.org/abs/2503.08639), a parameter-free method designed to explicitly capture the local geometric structure within point clouds.
 
@@ -65,4 +65,22 @@ Finally, use the `ensamble.py` script to merge the two sets of predictions. The 
 
 ```bash
 python ensamble.py --path_gblobs ../output/<path to Gblobs output>/results_nusc.json  --path_glob ../output/<path to global output>/results_nusc.json --thold 30
+```
+
+---
+
+## Dataset Preparation
+
+First, download the dataset from the [official challenge website](https://robosense2025.github.io/track3).
+To prepare the dataset, run the following command to create the test info files.
+
+```bash
+python -m pcdet.datasets.nuscenes.nuscenes_dataset --func create_nuscenes_infos --cfg_file tools/cfgs/dataset_configs/robosense_dataset.yaml --version v1.0-test
+```
+
+## Train the models
+We trained our models using 4x NVIDIA RTX A6000 50GB GPUs. The following commands will train both the GBlobs and global versions.
+```bash
+./scripts/torch_train.sh 4 --cfg_file cfgs/robosense_models/transfusion_lidar_gblobs.yaml
+./scripts/torch_train.sh 4 --cfg_file cfgs/robosense_models/transfusion_lidar.yaml
 ```
