@@ -9,7 +9,7 @@ DATA_CONFIG:
     }
 
     TTA: True
-    TTA_NUM_AUGS: 2
+    TTA_NUM_AUGS: 10
     TTA_DATA_AUGMENTOR:
         DISABLE_AUG_LIST: ['placeholder']
         AUG_CONFIG_LIST:

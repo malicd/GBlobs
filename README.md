@@ -11,7 +11,7 @@ This dual-strategy approach allows us to combine the strengths of both methods: 
 
 To reproduce our results, you need to clone the repository, set up the virtual environment, and download the checkpoints hosted on [HuggingFace](https://huggingface.co/dmalic/RoboSense25_Track_3). The following steps will guide you through the process.
 
-### Clone the repository
+### Clone the Repository
 First, clone the specific branch for this challenge:
 ```bash
 git clone -b robosense25_track3 git@github.com:malicd/GBlobs.git robosense25_track3_gblobs
@@ -45,19 +45,19 @@ Navigate to the tools directory. All necessary scripts are located in the tools 
 cd tools
 ```
 
-### Get GBlobs estimates
+### Get GBlobs Estimates
 Run the following command to get the GBlobs-based predictions. Make sure to note the output directory, as you'll need it later.
 ```bash
-python test.py --cfg_file cfgs/robosense_models/transfusion_lidar_gblobs.yaml  --batch_size 1 --ckpt ../RoboSense25_Track_3/transfusion_lidar_gblobs/default/ckpt/checkpoint_epoch_90.pth
+python test.py --cfg_file cfgs/robosense_models/transfusion_lidar_gblobs.yaml --batch_size 1 --ckpt ../RoboSense25_Track_3/transfusion_lidar_gblobs/default/ckpt/checkpoint_epoch_90.pth
 ```
-This will save the results to ../output/<path to Gblobs output>/results_nusc.json.
+This will save the results to ../output/\<path to GBlobs output\>/results_nusc.json.
 
 ### Generate Global Estimates
 Run the next command to get the global coordinate-based predictions, also noting the output path.
 ```bash
-python test.py --cfg_file cfgs/robosense_models/transfusion_lidar.yaml  --batch_size 1 --ckpt ../RoboSense25_Track_3/transfusion_lidar/default/ckpt/checkpoint_epoch_90.pth
+python test.py --cfg_file cfgs/robosense_models/transfusion_lidar.yaml --batch_size 1 --ckpt ../RoboSense25_Track_3/transfusion_lidar/default/ckpt/checkpoint_epoch_90.pth
 ```
-This will save the results to ../output/<path to global output>/results_nusc.json.
+This will save the results to ../output/\<path to global output\>/results_nusc.json.
 
 ### Merge the Results
 
