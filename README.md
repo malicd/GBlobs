@@ -20,6 +20,9 @@ LiDAR-based 3D detectors need large datasets for training, yet they struggle to 
   <img src="docs/gblobs/gblobs3d.png" alt="GBlobs illustration 3D" width="49%">
 </p>
 
+## News
+[2025-10] GBlobs, achieved state-of-the-art results in the [IROS RoboSense Challange Track #3: Cross-Sensor Placement 3D Object Detection](https://robosense2025.github.io/track3), securing 1st place. Check out our implementation in the separate branch [robosense25_track3](https://github.com/malicd/GBlobs/tree/robosense25_track3) or read our [technical report](https://arxiv.org/abs/2510.18539).
+
 ## Table of Contents
 1. [Installation/Getting Started](#installation_getting_started)
 2. [Obtaining the Checkpoints](#obtaining_checkpoints)
