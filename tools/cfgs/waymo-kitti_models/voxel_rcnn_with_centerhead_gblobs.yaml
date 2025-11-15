@@ -32,6 +32,8 @@ TEST_DATA_CONFIG:
     POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
     FOV_POINTS_ONLY: False
     SHIFT_COOR: [0.0, 0.0, 1.6]
+    OT_PARAMS: [[0, 0, 0], [-0.40, -0.23, -0.08], [-0.04, -0.05, 0.03], [0.10, -0.06, -0.03]]
+    LO_FILTER: [4.5, 2., 2.]
     POINT_FEATURE_ENCODING: {
         encoding_type: absolute_coordinates_encoding,
         used_feature_list: ['x', 'y', 'z'],
